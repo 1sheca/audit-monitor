@@ -1,0 +1,906 @@
+{
+  "kris": [
+    {
+      "id": "OI-02",
+      "name": "OI reversals vs revenue linkage",
+      "area": "O2C",
+      "kind": "Leading",
+      "status": "active",
+      "risk": "Order intake is de-booked (negative OBR) but the revenue already recognised is not adjusted, overstating revenue for the period.",
+      "objective": "Every OI reversal has a matching revenue treatment; the OI → revenue linkage holds on CPO number.",
+      "sources": [
+        "obs",
+        "sap",
+        "mrep"
+      ],
+      "steps": [
+        "Extract all OI bookings and reversals for the period from the Order Booking System (full population, no sampling).",
+        "Match each reversal to the original booking on CPO number and WBS.",
+        "Pull revenue postings for the same CPO / WBS from SAP and the Management Reporting revenue view.",
+        "Where a reversal exists, check that revenue was reversed, re-booked, or never recognised.",
+        "Search the Order Booking System for a re-booking of the same CPO on another WBS within the re-booking window.",
+        "Classify each item as explainable (re-booked, timing, correction) or unexplained, with the reasoning shown."
+      ],
+      "thresholds": [
+        {
+          "key": "rebookWindow",
+          "label": "Re-booking search window",
+          "value": 30,
+          "unit": "days"
+        },
+        {
+          "key": "minAmount",
+          "label": "Minimum reversal amount",
+          "value": 50000,
+          "unit": "EUR"
+        },
+        {
+          "key": "residual",
+          "label": "Planner trigger: unexplained items per region",
+          "value": 5,
+          "unit": "items"
+        }
+      ],
+      "frequency": "monthly",
+      "alignToClose": true,
+      "fetchOffsetDays": 3,
+      "sampling": 100,
+      "reviewer": "Audit Manager",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": "2026-09-02"
+    },
+    {
+      "id": "OI-01",
+      "name": "Order intake accuracy (CPO ↔ SAP ↔ OBS)",
+      "area": "O2C",
+      "kind": "Lagging",
+      "status": "active",
+      "risk": "OI is booked in the wrong period, for the wrong amount, or without a valid customer PO.",
+      "objective": "OI is booked correctly, in the correct period, for the correct amount.",
+      "sources": [
+        "sap",
+        "obs",
+        "mrep",
+        "pmaster"
+      ],
+      "steps": [
+        "Extract the OI (YCA) report from SAP for the period: WBS, project, currency, amount, booking text.",
+        "Extract the Order Booking System list with CPO reference, PO date, PO value and accepting manager.",
+        "Reconcile every line three ways: customer PO → SAP → Order Booking System (period, amount, currency, description, discounts).",
+        "Flag OI booked higher than PO value with no correction in the quarter.",
+        "Flag bookings where the PO date is after the booking date (cut-off).",
+        "Populate the testing template for the whole population and hand exceptions to the reviewer."
+      ],
+      "thresholds": [
+        {
+          "key": "varianceAbs",
+          "label": "Amount variance tolerance",
+          "value": 1,
+          "unit": "%"
+        },
+        {
+          "key": "minAmount",
+          "label": "Minimum booking amount",
+          "value": 25000,
+          "unit": "EUR"
+        },
+        {
+          "key": "residual",
+          "label": "Planner trigger: unexplained items per region",
+          "value": 5,
+          "unit": "items"
+        }
+      ],
+      "frequency": "quarterly",
+      "alignToClose": true,
+      "fetchOffsetDays": 5,
+      "sampling": 100,
+      "reviewer": "Senior Auditor",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": "2026-07-07"
+    },
+    {
+      "id": "OI-03",
+      "name": "Period-end de-booking clustering",
+      "area": "O2C",
+      "kind": "Leading",
+      "status": "active",
+      "risk": "Corrections and de-bookings cluster in the final days of a period, indicating OI managed to a target rather than to the customer PO.",
+      "objective": "De-bookings are spread through the period and each has a documented business reason.",
+      "sources": [
+        "obs",
+        "sap"
+      ],
+      "steps": [
+        "Extract all negative OI lines (corrections, de-bookings) for the period from the Order Booking System.",
+        "Bucket by days-before-close and by WBS, region and business group (BG-A / BG-B).",
+        "Flag any WBS or region where de-bookings in the last N days exceed the threshold share.",
+        "For flagged clusters, read the booking text for a stated reason and check for a re-booking in the next period."
+      ],
+      "thresholds": [
+        {
+          "key": "window",
+          "label": "Period-end window",
+          "value": 3,
+          "unit": "days before close"
+        },
+        {
+          "key": "share",
+          "label": "Share of period de-bookings in window",
+          "value": 40,
+          "unit": "%"
+        },
+        {
+          "key": "residual",
+          "label": "Planner trigger: clusters per region",
+          "value": 2,
+          "unit": "clusters"
+        }
+      ],
+      "frequency": "monthly",
+      "alignToClose": true,
+      "fetchOffsetDays": 2,
+      "sampling": 100,
+      "reviewer": "Audit Manager",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": "2026-09-01"
+    },
+    {
+      "id": "OBL-01",
+      "name": "Order backlog completeness",
+      "area": "O2C",
+      "kind": "Lagging",
+      "status": "active",
+      "risk": "Backlog reported to management does not reconcile to booked OI less recognised revenue.",
+      "objective": "OBL = cumulative OI − cumulative revenue for every open WBS.",
+      "sources": [
+        "sap",
+        "mrep"
+      ],
+      "steps": [
+        "Recompute backlog per WBS from SAP OI and revenue postings.",
+        "Compare with the Management Reporting backlog view for the same period.",
+        "Flag WBSs where the difference exceeds tolerance and trace to the causing posting."
+      ],
+      "thresholds": [
+        {
+          "key": "tolerance",
+          "label": "Backlog difference tolerance",
+          "value": 0.5,
+          "unit": "%"
+        },
+        {
+          "key": "residual",
+          "label": "Planner trigger: unexplained items per region",
+          "value": 5,
+          "unit": "items"
+        }
+      ],
+      "frequency": "quarterly",
+      "alignToClose": true,
+      "fetchOffsetDays": 7,
+      "sampling": 100,
+      "reviewer": "Senior Auditor",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": "2026-07-10"
+    },
+    {
+      "id": "WBS-01",
+      "name": "WBS – project – currency consistency",
+      "area": "O2C",
+      "kind": "Lagging",
+      "status": "paused",
+      "risk": "OI is booked on a WBS whose project, customer or currency does not match the CPO.",
+      "objective": "Every OI line sits on a WBS that belongs to the CPO customer and currency.",
+      "sources": [
+        "pmaster",
+        "sap",
+        "obs"
+      ],
+      "steps": [
+        "Pull WBS master (project, customer, currency) from Project Master.",
+        "Join OI lines to WBS master and compare customer and currency with the CPO.",
+        "Flag mismatches and WBSs closed before the booking date."
+      ],
+      "thresholds": [
+        {
+          "key": "residual",
+          "label": "Planner trigger: unexplained items per region",
+          "value": 5,
+          "unit": "items"
+        }
+      ],
+      "frequency": "monthly",
+      "alignToClose": true,
+      "fetchOffsetDays": 3,
+      "sampling": 100,
+      "reviewer": "Audit Manager",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": null,
+      "note": "Paused: Project Master pre-prod access pending (IT owner)."
+    },
+    {
+      "id": "STK-01",
+      "name": "Stock adjustments without approval trail",
+      "area": "O2C",
+      "kind": "Lagging",
+      "status": "draft",
+      "risk": "Inventory write-offs or adjustments are posted without the approval required by policy.",
+      "objective": "Every stock adjustment above threshold carries a valid approval reference.",
+      "sources": [
+        "sap"
+      ],
+      "steps": [
+        "Requirements walkthrough with the STK process owner scheduled this week."
+      ],
+      "thresholds": [
+        {
+          "key": "minAmount",
+          "label": "Minimum adjustment value",
+          "value": 10000,
+          "unit": "EUR"
+        }
+      ],
+      "frequency": "monthly",
+      "alignToClose": true,
+      "fetchOffsetDays": 3,
+      "sampling": 100,
+      "reviewer": "Audit Manager",
+      "hitl": "exceptions",
+      "owner": "Internal Audit",
+      "lastRun": null,
+      "note": "In assessment – use-case week 1."
+    },
+    {
+      "id": "S2P-01",
+      "name": "Duplicate payments – assurance over business monitoring",
+      "area": "S2P",
+      "kind": "Assurance",
+      "status": "paused",
+      "risk": "The CCM duplicate-check run by the S2P team misses true duplicates or is not operating as designed.",
+      "objective": "IA validates the business control rather than re-performing it; re-test a sample of its flagged and cleared items.",
+      "sources": [
+        "sap"
+      ],
+      "steps": [
+        "Ingest the CCM duplicate-check output for the period (flagged vs cleared).",
+        "Re-perform the duplicate test on a risk-weighted sample of cleared items.",
+        "Report on control effectiveness, not on individual invoices."
+      ],
+      "thresholds": [
+        {
+          "key": "sample",
+          "label": "Re-test sample of cleared items",
+          "value": 2,
+          "unit": "%"
+        }
+      ],
+      "frequency": "quarterly",
+      "alignToClose": true,
+      "fetchOffsetDays": 10,
+      "sampling": 2,
+      "reviewer": "Senior Auditor",
+      "hitl": "all",
+      "owner": "Internal Audit",
+      "lastRun": null,
+      "note": "Deferred: S2P documentation gap (invoice vs PO vs GR). Do not duplicate the CCM programme."
+    }
+  ],
+  "runs": [
+    {
+      "id": "R-0912",
+      "kriId": "OI-02",
+      "trigger": "Scheduled",
+      "period": "P8 · Aug 2026",
+      "startedAt": "2026-09-02T04:10:00",
+      "duration": "11 min",
+      "status": "Complete",
+      "population": 214,
+      "tested": 214,
+      "exceptions": 4,
+      "explainable": 2,
+      "unexplained": 2
+    },
+    {
+      "id": "R-0911",
+      "kriId": "OI-03",
+      "trigger": "Scheduled",
+      "period": "P8 · Aug 2026",
+      "startedAt": "2026-09-01T04:05:00",
+      "duration": "6 min",
+      "status": "Complete",
+      "population": 61,
+      "tested": 61,
+      "exceptions": 2,
+      "explainable": 1,
+      "unexplained": 1
+    },
+    {
+      "id": "R-0882",
+      "kriId": "OI-01",
+      "trigger": "Scheduled",
+      "period": "Q2 FY26",
+      "startedAt": "2026-07-07T04:00:00",
+      "duration": "24 min",
+      "status": "Complete",
+      "population": 90,
+      "tested": 90,
+      "exceptions": 3,
+      "explainable": 2,
+      "unexplained": 1
+    },
+    {
+      "id": "R-0883",
+      "kriId": "OBL-01",
+      "trigger": "Scheduled",
+      "period": "Q2 FY26",
+      "startedAt": "2026-07-10T04:00:00",
+      "duration": "9 min",
+      "status": "Complete",
+      "population": 412,
+      "tested": 412,
+      "exceptions": 0,
+      "explainable": 0,
+      "unexplained": 0
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "X-1041",
+      "runId": "R-0912",
+      "kriId": "OI-02",
+      "ref": "CPO 4500120011",
+      "wbs": "N.10871.03",
+      "project": "Customer A – 5G Phase 2",
+      "region": "MEA",
+      "bg": "BG-A",
+      "amount": 860000,
+      "currency": "EUR",
+      "category": "Reversal without revenue adjustment",
+      "classification": "unexplained",
+      "status": "open",
+      "summary": "OI of EUR 860,000 was de-booked on 27 Aug (one day before close). Revenue of EUR 215,000 recognised in P7 on this CPO was not reversed and no re-booking was found.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Booking 88213 · 14 Jul 2026",
+          "value": "OI +860,000 EUR, WBS N.10871.03, accepted by manager AM-104"
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90577 · 27 Aug 2026",
+          "value": "OI −860,000 EUR (negative OBR), text: \"cust scope change\""
+        },
+        {
+          "source": "sap",
+          "record": "Revenue postings · P7",
+          "value": "EUR 215,000 recognised against CPO 4500120011"
+        },
+        {
+          "source": "sap",
+          "record": "Revenue postings · P8",
+          "value": "No reversal or adjustment found"
+        },
+        {
+          "source": "obs",
+          "record": "Re-booking search · 27 Aug – 16 Sep",
+          "value": "No booking for CPO 4500120011 on any WBS"
+        }
+      ],
+      "reasoning": [
+        "Step 2 matched reversal 90577 to booking 88213 on CPO number and WBS.",
+        "Step 4 found revenue already recognised in P7 (EUR 215,000) with no adjustment in P8 – the OI → revenue linkage is broken.",
+        "Step 5 searched 30 days (threshold) for a re-booking and found none, so the \"re-booked on a new WBS\" explanation does not apply.",
+        "The booking text says \"cust scope change\" but there is no revised CPO attached; a scope change would normally leave a reduced OI, not zero."
+      ],
+      "hypothesis": {
+        "text": "Revenue adjustment missed after de-booking. Most likely a missed handover between market operations (who reversed the OI) and project finance (who own the revenue posting).",
+        "confidence": 0.78
+      },
+      "confirm": "Ask project finance for the revised CPO or the revenue reversal reference for P9. If a revised CPO exists, expect a re-booking at the reduced value."
+    },
+    {
+      "id": "X-1042",
+      "runId": "R-0912",
+      "kriId": "OI-02",
+      "ref": "CPO 4500118732",
+      "wbs": "N.10234.01",
+      "project": "Customer B – Core Network Upgrade",
+      "region": "MEA",
+      "bg": "BG-A",
+      "amount": 1240000,
+      "currency": "EUR",
+      "category": "Reversal with re-booking",
+      "classification": "explainable",
+      "status": "open",
+      "summary": "OI of EUR 1,240,000 was de-booked on 28 Aug and re-booked for the same amount on WBS N.10234.02 on 2 Sep. Revenue linkage moves with the new WBS.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Booking 87990 · 04 Aug 2026",
+          "value": "OI +1,240,000 EUR, WBS N.10234.01"
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90602 · 28 Aug 2026",
+          "value": "OI −1,240,000 EUR, text: \"WBS split – move to .02\""
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90911 · 02 Sep 2026",
+          "value": "OI +1,240,000 EUR, WBS N.10234.02, same CPO"
+        },
+        {
+          "source": "pmaster",
+          "record": "WBS N.10234.02",
+          "value": "Created 26 Aug 2026 under the same project"
+        },
+        {
+          "source": "sap",
+          "record": "Revenue postings · P7–P8",
+          "value": "No revenue recognised yet on this CPO"
+        }
+      ],
+      "reasoning": [
+        "Step 5 found a re-booking of the identical CPO and amount inside the 30-day window.",
+        "Project Master confirms the target WBS belongs to the same project, so this is a structural move, not a lost order.",
+        "No revenue had been recognised, so nothing needed adjusting.",
+        "Flagged only because the reversal crossed a period boundary – the pattern is explainable and consistent with the booking text."
+      ],
+      "hypothesis": {
+        "text": "Project split into two WBSs; OI moved rather than lost. No revenue impact.",
+        "confidence": 0.92
+      },
+      "confirm": "Nothing further required. Consider a rule to auto-clear reversals that are re-booked on the same CPO within the window."
+    },
+    {
+      "id": "X-1043",
+      "runId": "R-0912",
+      "kriId": "OI-02",
+      "ref": "CPO 4500119204",
+      "wbs": "N.10455.01",
+      "project": "Customer C – Transport Modernisation",
+      "region": "MEA",
+      "bg": "BG-A",
+      "amount": 430000,
+      "currency": "EUR",
+      "category": "Reversal without revenue adjustment",
+      "classification": "unexplained",
+      "status": "open",
+      "summary": "Partial de-booking of EUR 430,000 out of EUR 1,900,000 on 29 Aug. Revenue of EUR 610,000 already recognised is higher than the remaining OI would support at the project margin.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Booking 88750 · 21 Jul 2026",
+          "value": "OI +1,900,000 EUR"
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90640 · 29 Aug 2026",
+          "value": "OI −430,000 EUR, text: \"discount agreed\""
+        },
+        {
+          "source": "sap",
+          "record": "Revenue · P7–P8",
+          "value": "EUR 610,000 recognised (32% of original OI)"
+        },
+        {
+          "source": "mrep",
+          "record": "Backlog view · P8",
+          "value": "Backlog reduced by 430,000 – consistent with reversal"
+        }
+      ],
+      "reasoning": [
+        "Reversal text states a discount, which is a legitimate reason for a partial de-booking.",
+        "However revenue already recognised was computed on the original OI; a 22.6% price reduction should trigger a revenue true-up.",
+        "No true-up posting was found in P8; the backlog view moved but the revenue view did not."
+      ],
+      "hypothesis": {
+        "text": "Discount applied to OI but not pushed through to revenue recognition – possible timing (true-up may land in P9).",
+        "confidence": 0.64
+      },
+      "confirm": "Re-check after P9 close. If no true-up appears, raise with project finance."
+    },
+    {
+      "id": "X-1044",
+      "runId": "R-0912",
+      "kriId": "OI-02",
+      "ref": "CPO 4500121188",
+      "wbs": "N.11002.01",
+      "project": "Customer D – FTTH Wave 3",
+      "region": "MEA",
+      "bg": "BG-B",
+      "amount": 95000,
+      "currency": "EUR",
+      "category": "Reversal – timing",
+      "classification": "explainable",
+      "status": "accepted",
+      "summary": "De-booking on 30 Aug corrects a duplicate booking made on 29 Aug for the same CPO. Net OI is unchanged.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Booking 90655 · 29 Aug 2026",
+          "value": "OI +95,000 EUR"
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90656 · 29 Aug 2026",
+          "value": "OI +95,000 EUR (duplicate)"
+        },
+        {
+          "source": "obs",
+          "record": "Booking 90690 · 30 Aug 2026",
+          "value": "OI −95,000 EUR, text: \"dup correction\""
+        }
+      ],
+      "reasoning": [
+        "Two identical bookings within one minute followed by a reversal of one – a classic duplicate correction.",
+        "Net position matches the CPO value."
+      ],
+      "hypothesis": {
+        "text": "Duplicate entry corrected same period. No impact.",
+        "confidence": 0.97
+      },
+      "confirm": "Accepted by reviewer on 4 Sep."
+    },
+    {
+      "id": "X-1031",
+      "runId": "R-0911",
+      "kriId": "OI-03",
+      "ref": "WBS N.10871.*",
+      "wbs": "N.10871.01–.04",
+      "project": "Customer A – 5G Phase 2",
+      "region": "MEA",
+      "bg": "BG-A",
+      "amount": 1620000,
+      "currency": "EUR",
+      "category": "Period-end de-booking cluster",
+      "classification": "unexplained",
+      "status": "open",
+      "summary": "6 of the 9 de-bookings on this project in P8 (67%) fell in the last 3 days before close, totalling EUR 1.62m. Threshold is 40%.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Negative OI lines · P8",
+          "value": "9 lines on N.10871.*; 6 dated 27–30 Aug"
+        },
+        {
+          "source": "obs",
+          "record": "Booking text",
+          "value": "4 lines: \"cust scope change\"; 2 lines: blank"
+        },
+        {
+          "source": "sap",
+          "record": "Revenue · P8",
+          "value": "No revenue adjustments on the project"
+        }
+      ],
+      "reasoning": [
+        "Share of de-bookings in the period-end window (67%) is above the 40% threshold.",
+        "Two lines carry no business reason at all.",
+        "The same project appears in OI-02 exception X-1041 – two independent KRIs point at the same WBS family."
+      ],
+      "hypothesis": {
+        "text": "OI on this project is being adjusted at period end to manage the reported figure rather than to reflect customer POs.",
+        "confidence": 0.71
+      },
+      "confirm": "Candidate for a pointed spot audit (1–2 weeks) on Customer A OI. Sent to the Planner as a residual-risk trigger."
+    },
+    {
+      "id": "X-1032",
+      "runId": "R-0911",
+      "kriId": "OI-03",
+      "ref": "WBS N.09912.02",
+      "wbs": "N.09912.02",
+      "project": "Customer F – RAN Refresh",
+      "region": "Europe",
+      "bg": "BG-A",
+      "amount": 240000,
+      "currency": "EUR",
+      "category": "Period-end de-booking cluster",
+      "classification": "explainable",
+      "status": "open",
+      "summary": "2 of 2 de-bookings fell on 29 Aug; both re-booked in P9 on a corrected currency (GBP).",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Negative OI lines · P8",
+          "value": "2 lines, 29 Aug, text: \"currency corr\""
+        },
+        {
+          "source": "obs",
+          "record": "Bookings · P9",
+          "value": "2 lines, 01 Sep, GBP equivalent"
+        }
+      ],
+      "reasoning": [
+        "Small population (2 lines) trips the share threshold trivially.",
+        "Both re-booked next period in the correct currency – a mechanical correction."
+      ],
+      "hypothesis": {
+        "text": "Currency correction across a period boundary. No risk.",
+        "confidence": 0.9
+      },
+      "confirm": "Consider a minimum-population guard of 4 lines on this threshold."
+    },
+    {
+      "id": "X-0993",
+      "runId": "R-0882",
+      "kriId": "OI-01",
+      "ref": "CPO 4500117560",
+      "wbs": "N.09877.01",
+      "project": "Customer E – Fixed Access",
+      "region": "Europe",
+      "bg": "BG-B",
+      "amount": 2100000,
+      "currency": "EUR",
+      "category": "OI higher than customer PO",
+      "classification": "unexplained",
+      "status": "anomaly",
+      "summary": "OI booked at EUR 2,100,000 against a customer PO of EUR 1,950,000 (+7.7%). No correction in the quarter.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "CPO 4500117560",
+          "value": "PO value 1,950,000 EUR, PO date 11 Apr 2026"
+        },
+        {
+          "source": "sap",
+          "record": "OI (YCA) · Q2",
+          "value": "2,100,000 EUR, WBS N.09877.01"
+        },
+        {
+          "source": "sap",
+          "record": "Corrections · Q2",
+          "value": "None"
+        }
+      ],
+      "reasoning": [
+        "Variance of 7.7% is above the 1% tolerance.",
+        "No PO amendment attached in Order Booking System; no correction in the quarter."
+      ],
+      "hypothesis": {
+        "text": "Booking included an expected change order that was never confirmed by the customer.",
+        "confidence": 0.7
+      },
+      "confirm": "Confirmed as an observation by reviewer on 15 Jul; raised with the account manager."
+    },
+    {
+      "id": "X-0994",
+      "runId": "R-0882",
+      "kriId": "OI-01",
+      "ref": "CPO 4500118301",
+      "wbs": "N.10101.01",
+      "project": "Customer G – Core Network",
+      "region": "Europe",
+      "bg": "BG-A",
+      "amount": 380000,
+      "currency": "EUR",
+      "category": "Cut-off – PO dated after booking",
+      "classification": "explainable",
+      "status": "accepted",
+      "summary": "OI booked 28 Jun; customer PO dated 2 Jul. Signed LOI on file dated 25 Jun.",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "Booking 86120 · 28 Jun 2026",
+          "value": "OI +380,000 EUR"
+        },
+        {
+          "source": "obs",
+          "record": "CPO 4500118301",
+          "value": "PO date 02 Jul 2026"
+        },
+        {
+          "source": "tickets",
+          "record": "Attachment",
+          "value": "Signed LOI, 25 Jun 2026"
+        }
+      ],
+      "reasoning": [
+        "PO date after booking date trips the cut-off test.",
+        "Policy v4.1 §3.2 allows booking on a signed LOI where the PO follows within 10 working days – it did."
+      ],
+      "hypothesis": {
+        "text": "Permitted LOI-based booking. No exception under policy v4.1.",
+        "confidence": 0.88
+      },
+      "confirm": "Accepted. Rule updated to recognise LOI attachments."
+    },
+    {
+      "id": "X-0995",
+      "runId": "R-0882",
+      "kriId": "OI-01",
+      "ref": "CPO 4500118877",
+      "wbs": "N.10240.03",
+      "project": "Customer H – Transport",
+      "region": "MEA",
+      "bg": "BG-B",
+      "amount": 512000,
+      "currency": "EUR",
+      "category": "Currency conversion variance",
+      "classification": "explainable",
+      "status": "accepted",
+      "summary": "CPO in USD; OI booked in EUR at 0.921 vs the month table rate of 0.915 (0.6% variance).",
+      "evidence": [
+        {
+          "source": "obs",
+          "record": "CPO 4500118877",
+          "value": "USD 556,000"
+        },
+        {
+          "source": "sap",
+          "record": "OI (YCA)",
+          "value": "EUR 512,000 at 0.921"
+        },
+        {
+          "source": "sap",
+          "record": "Rate table · Jun 2026",
+          "value": "USD/EUR 0.915"
+        }
+      ],
+      "reasoning": [
+        "Variance is within the 1% tolerance once the rate difference is isolated.",
+        "Rate used matches the daily rate on the booking date, not the month table."
+      ],
+      "hypothesis": {
+        "text": "Daily vs monthly rate. Within tolerance.",
+        "confidence": 0.95
+      },
+      "confirm": "Accepted."
+    }
+  ],
+  "planner": [
+    {
+      "id": "PL-018",
+      "type": "Auto · from KRI",
+      "source": "OI-02 + OI-03",
+      "title": "Customer A – OI reversals at period end",
+      "region": "MEA",
+      "bg": "BG-A",
+      "createdAt": "2026-09-02",
+      "status": "New",
+      "scope": "10 OI cancellations across 4 WBSs in P8 with no revenue impact; two KRIs point at the same project.",
+      "suggestedLength": "2 weeks",
+      "policyDefault": "v4.1",
+      "link": "X-1041, X-1031"
+    },
+    {
+      "id": "PL-017",
+      "type": "Ticket",
+      "source": "IA-2026-0142",
+      "title": "Spot audit – Order intake accuracy, BG-B Europe, Q3",
+      "region": "Europe",
+      "bg": "BG-B",
+      "createdAt": "2026-09-08",
+      "status": "Plan drafted",
+      "scope": "Requested by the BG-B Europe controller after the Q2 observation on Customer E.",
+      "suggestedLength": "3 weeks",
+      "policyDefault": "v4.1",
+      "link": "X-0993"
+    },
+    {
+      "id": "PL-016",
+      "type": "Manual",
+      "source": "Planning schedule",
+      "title": "Stock adjustments – regional warehouse",
+      "region": "APAC",
+      "bg": "BG-B",
+      "createdAt": "2026-09-10",
+      "status": "Live",
+      "scope": "Known spot audit fed in from the annual plan while STK-01 is still in assessment.",
+      "suggestedLength": "1 week",
+      "policyDefault": "v2.0",
+      "link": "—"
+    }
+  ],
+  "sources": [
+    {
+      "id": "sap",
+      "name": "SAP ECC",
+      "kind": "ERP (OI / YCA report, WBS, revenue)"
+    },
+    {
+      "id": "obs",
+      "name": "Order Booking System",
+      "kind": "Order booking & CPO capture"
+    },
+    {
+      "id": "mrep",
+      "name": "Management Reporting",
+      "kind": "Management reporting & backlog views"
+    },
+    {
+      "id": "pmaster",
+      "name": "Project Master",
+      "kind": "Project & WBS master"
+    },
+    {
+      "id": "tickets",
+      "name": "Audit Ticketing / SharePoint",
+      "kind": "Audit tickets, policies, work papers"
+    }
+  ],
+  "policies": [
+    {
+      "id": "v4.1",
+      "name": "Order Intake Recognition Policy v4.1",
+      "date": "Jun 2026",
+      "current": true
+    },
+    {
+      "id": "v4.0",
+      "name": "Order Intake Recognition Policy v4.0",
+      "date": "Jan 2026",
+      "current": false
+    },
+    {
+      "id": "v3.2",
+      "name": "Order Intake Recognition Policy v3.2",
+      "date": "Sep 2024",
+      "current": false
+    }
+  ],
+  "priorWork": [
+    {
+      "audit": "Order Intake – Q2 FY26",
+      "policy": "v4.1",
+      "steps": 14,
+      "date": "Jul 2026"
+    },
+    {
+      "audit": "Order Intake – Q1 FY26",
+      "policy": "v4.0",
+      "steps": 14,
+      "date": "Apr 2026"
+    },
+    {
+      "audit": "Order Intake – Q4 FY25",
+      "policy": "v4.0",
+      "steps": 15,
+      "date": "Jan 2026"
+    }
+  ],
+  "closeCalendar": {
+    "pattern": "4-4-5",
+    "periods": [
+      {
+        "p": "P8",
+        "label": "Aug 2026",
+        "close": "2026-08-30",
+        "q": "Q3"
+      },
+      {
+        "p": "P9",
+        "label": "Sep 2026",
+        "close": "2026-09-27",
+        "q": "Q3",
+        "quarterEnd": true
+      },
+      {
+        "p": "P10",
+        "label": "Oct 2026",
+        "close": "2026-10-25",
+        "q": "Q4"
+      },
+      {
+        "p": "P11",
+        "label": "Nov 2026",
+        "close": "2026-11-22",
+        "q": "Q4"
+      },
+      {
+        "p": "P12",
+        "label": "Dec 2026",
+        "close": "2026-12-27",
+        "q": "Q4",
+        "quarterEnd": true
+      }
+    ]
+  }
+}
