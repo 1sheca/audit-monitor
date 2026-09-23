@@ -1,4 +1,14 @@
 # Audit monitor – continuous KRI monitoring & Audit planner
+live at: https://claude.ai/artifact/HbcncNfnPEZVj3P4w1ewAw
+
+
+
+
+
+
+
+
+
 
 A configurable Internal Audit platform: KRIs are onboarded as configuration
 (sources, test steps, thresholds, schedule), run on the financial close
